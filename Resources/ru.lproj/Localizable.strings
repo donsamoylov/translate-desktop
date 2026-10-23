@@ -28,3 +28,15 @@
 "Zoom" = "Масштаб";
 "Bring All to Front" = "Все окна — на передний план";
 "Cancel" = "Отмена";
+"Check for Updates…" = "Проверить обновления…";
+"Couldn’t check for updates" = "Не удалось проверить обновления";
+"You’re up to date" = "Обновлений нет";
+"Translate Desktop %@ is the latest version." = "Translate Desktop %@ — последняя версия.";
+"Translate Desktop %@ is available" = "Доступен Translate Desktop %@";
+"You have %@." = "У вас версия %@.";
+"Install and Relaunch" = "Установить и перезапустить";
+"Later" = "Позже";
+"The update’s signature doesn’t match. It wasn’t installed." = "Подпись обновления не совпала. Оно не установлено.";
+"The downloaded update is not Translate Desktop." = "Скачанное обновление — не Translate Desktop.";
+"Update failed" = "Не удалось обновить";
+"Couldn’t unpack the update." = "Не удалось распаковать обновление.";

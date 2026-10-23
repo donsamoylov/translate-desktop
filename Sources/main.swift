@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.mainMenu = buildMenu()
         showWindow(nil)
+        Updater.shared.start()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
@@ -33,6 +34,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let app = submenu(main, "Translate Desktop")
         app.addItem(withTitle: L("About Translate Desktop"),
                     action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(withTitle: L("Check for Updates…"), action: #selector(Updater.checkForUpdates(_:)),
+                    keyEquivalent: "").target = Updater.shared
         app.addItem(.separator())
         app.addItem(withTitle: L("Hide Translate Desktop"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         let others = app.addItem(withTitle: L("Hide Others"),

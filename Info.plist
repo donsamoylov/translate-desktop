@@ -15,6 +15,8 @@
 	<key>LSMinimumSystemVersion</key><string>14.0</string>
 	<key>LSApplicationCategoryType</key><string>public.app-category.reference</string>
 	<key>NSHighResolutionCapable</key><true/>
+	<key>NMUpdateRepo</key><string>donsamoylov/translate-desktop</string>
+	<key>NMUpdatePublicKey</key><string>61RfEyn0Wed/9LK+KISimBAqgznjz4tOeWiYBdN1wso=</string>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
 	<key>NSMicrophoneUsageDescription</key><string>To translate what you say.</string>
 	<key>NSHumanReadableCopyright</key><string>Unofficial Mac app for Google Translate. Not affiliated with Google.</string>
