@@ -10,6 +10,7 @@ final class TranslateWindowController: NSWindowController, NSWindowDelegate, WKN
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()        // вход в аккаунт и настройки сохраняются
         config.preferences.isElementFullscreenEnabled = true
+        config.userContentController.addUserScript(Site.style)
         webView = WKWebView(frame: .zero, configuration: config)
         // Представляемся сайту как Chrome — Google рассчитывает на него.
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
@@ -243,6 +244,21 @@ enum Site {
     }
 
     static func isGoogle(_ url: URL) -> Bool { matches(url.host ?? "", #"(^|\.)"# + google) }
+
+    /// Кнопка «Приложения Google» в шапке ведет в другие сервисы — в окне Переводчика она не нужна.
+    /// Прячется вместе с обертками, в которых она одна, чтобы не осталось пустого места.
+    static let style = WKUserScript(source: """
+        if (/^translate\\.google\\./.test(location.hostname)) {
+          const apps = 'a[href*="/about/products"]';
+          const style = document.createElement('style');
+          style.textContent = `
+            ${apps},
+            :has(> ${apps}:only-child),
+            :has(> :only-child > ${apps}:only-child),
+            :has(> :only-child > :only-child > ${apps}:only-child) { display: none !important; }`;
+          document.documentElement.appendChild(style);
+        }
+        """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
 
     private static func matches(_ host: String, _ pattern: String) -> Bool {
         host.lowercased().range(of: pattern, options: .regularExpression) != nil

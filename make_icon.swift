@@ -1,6 +1,6 @@
 import AppKit
-// Иконка Translate Desktop: темная плашка, как у Maps Desktop, и два облачка реплик с буквами A и Я
-// в цветах Maps Desktop. Нарисована с нуля, логотип Google не используется.
+// Иконка Translate Desktop: темная плашка, как у Maps Desktop, и две карточки в духе Google Переводчика —
+// синяя с «A» и белая с «文». Нарисована с нуля, логотип Google («G») не используется.
 // swift make_icon.swift <папка .iconset>
 let out = CommandLine.arguments[1]
 
@@ -10,52 +10,33 @@ func rgb(_ hex: UInt32, _ a: CGFloat = 1) -> CGColor {
 }
 let space = CGColorSpace(name: CGColorSpace.sRGB)!
 
-/// Облачко: скругленный прямоугольник и хвостик внизу — у левого или у правого края.
-func bubble(_ r: CGRect, tailLeft: Bool) -> CGPath {
-    let radius = r.height * 0.3
-    let body = CGPath(roundedRect: r, cornerWidth: radius, cornerHeight: radius, transform: nil)
-    let d: CGFloat = tailLeft ? 1 : -1
-    let start = tailLeft ? r.minX + radius * 0.5 : r.maxX - radius * 0.5
-    let tip = CGPoint(x: start - d * r.width * 0.02, y: r.minY - r.height * 0.3)
-    let tail = CGMutablePath()
-    tail.move(to: CGPoint(x: start, y: r.minY + radius))
-    tail.addLine(to: CGPoint(x: start, y: r.minY))
-    tail.addQuadCurve(to: tip, control: CGPoint(x: start, y: tip.y + r.height * 0.12))
-    tail.addQuadCurve(to: CGPoint(x: start + d * r.width * 0.3, y: r.minY),
-                      control: CGPoint(x: start + d * r.width * 0.1, y: r.minY - r.height * 0.06))
-    tail.addLine(to: CGPoint(x: start + d * r.width * 0.3, y: r.minY + radius))
-    tail.closeSubpath()
-    return body.union(tail)
-}
-
-/// Буква белым по центру точки: высота — по контуру самой буквы, а не строки.
-func letter(_ text: String, at c: CGPoint, height: CGFloat, in ctx: CGContext) {
-    let base = NSFont.systemFont(ofSize: height, weight: .heavy)
+/// Знак по центру точки: высота — по контуру самого знака, а не строки. «文» берется из системного
+/// шрифта с иероглифами (CoreText подставляет его сам).
+func glyph(_ text: String, at c: CGPoint, height: CGFloat, weight: NSFont.Weight, color: NSColor, in ctx: CGContext) {
+    let base = NSFont.systemFont(ofSize: height, weight: weight)
     let font = base.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: height) } ?? base
     let probe = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font]))
     let size = height * height / CTLineGetBoundsWithOptions(probe, .useGlyphPathBounds).height
     let sized = NSFont(descriptor: font.fontDescriptor, size: size) ?? font
     let line = CTLineCreateWithAttributedString(NSAttributedString(
-        string: text, attributes: [.font: sized, .foregroundColor: NSColor.white]))
+        string: text, attributes: [.font: sized, .foregroundColor: color]))
     let b = CTLineGetBoundsWithOptions(line, .useGlyphPathBounds)
     ctx.textMatrix = .identity
     ctx.textPosition = CGPoint(x: c.x - b.midX, y: c.y - b.midY)
     CTLineDraw(line, ctx)
 }
 
-func fill(_ path: CGPath, _ top: UInt32, _ bottom: UInt32, in ctx: CGContext, shadow s: CGFloat) {
+/// Заливка фигуры вертикальным градиентом с мягкой тенью под ней.
+func fill(_ path: CGPath, _ top: UInt32, _ bottom: UInt32, shadow: CGFloat, in ctx: CGContext) {
     ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -s * 0.008), blur: s * 0.025, color: rgb(0x000000, 0.45))
-    ctx.addPath(path); ctx.setFillColor(rgb(top)); ctx.fillPath()
+    ctx.setShadow(offset: CGSize(width: 0, height: -shadow * 0.4), blur: shadow, color: rgb(0x000000, 0.4))
+    ctx.addPath(path); ctx.setFillColor(rgb(bottom)); ctx.fillPath()
     ctx.restoreGState()
     ctx.saveGState()
     ctx.addPath(path); ctx.clip()
     let box = path.boundingBoxOfPath
     let shade = CGGradient(colorsSpace: space, colors: [rgb(top), rgb(bottom)] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(shade, start: CGPoint(x: box.minX, y: box.maxY), end: CGPoint(x: box.maxX, y: box.minY), options: [])
-    // Легкий объем: светлее сверху.
-    let gloss = CGGradient(colorsSpace: space, colors: [rgb(0xFFFFFF, 0.18), rgb(0xFFFFFF, 0)] as CFArray, locations: [0, 1])!
-    ctx.drawLinearGradient(gloss, start: CGPoint(x: 0, y: box.maxY), end: CGPoint(x: 0, y: box.midY), options: [])
+    ctx.drawLinearGradient(shade, start: CGPoint(x: 0, y: box.maxY), end: CGPoint(x: 0, y: box.minY), options: [])
     ctx.restoreGState()
 }
 
@@ -81,19 +62,27 @@ for (size, name) in [(16,"16x16"),(32,"16x16@2x"),(32,"32x32"),(64,"32x32@2x"),(
     ctx.drawLinearGradient(shade, start: CGPoint(x: 0, y: body.maxY), end: CGPoint(x: 0, y: body.minY), options: [])
     ctx.restoreGState()
 
-    // Облачка в долях тела плашки: заднее (Я) справа вверху, переднее (A) слева внизу; вместе — по центру.
+    // Карточки в долях тела плашки: белая — справа ниже, синяя — слева выше, поверх нее; вместе — по центру.
     let w = body.width
-    func rect(_ x: CGFloat, _ y: CGFloat) -> CGRect {
-        CGRect(x: body.minX + x * w, y: body.minY + y * w, width: w * 0.5, height: w * 0.38)
+    func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: body.minX + x * w, y: body.minY + y * w) }
+    func card(_ x: CGFloat, _ y: CGFloat) -> CGPath {
+        CGPath(roundedRect: CGRect(origin: p(x, y), size: CGSize(width: w * 0.44, height: w * 0.48)),
+               cornerWidth: w * 0.06, cornerHeight: w * 0.06, transform: nil)
     }
-    let front = bubble(rect(0.13, 0.26), tailLeft: true)
-    let back = bubble(rect(0.37, 0.49), tailLeft: false)
-    // Между облачками — зазор цвета плашки.
-    let gap = front.copy(strokingWithWidth: w * 0.07, lineCap: .round, lineJoin: .round, miterLimit: 10)
-    fill(back.subtracting(front.union(gap)), 0xF59A2E, 0xE0457B, in: ctx, shadow: s)
-    fill(front, 0x4F8BFF, 0x8A7BFF, in: ctx, shadow: s)
-    letter("Я", at: CGPoint(x: body.minX + w * 0.7, y: body.minY + w * 0.72), height: w * 0.18, in: ctx)
-    letter("A", at: CGPoint(x: body.minX + w * 0.38, y: body.minY + w * 0.45), height: w * 0.21, in: ctx)
+    let white = card(0.42, 0.17)
+    let blue = card(0.14, 0.35)
+    // Синий «загиб» под синей карточкой, как у Переводчика, — ложится на белую.
+    let fold = CGMutablePath()
+    fold.move(to: p(0.42, 0.36))
+    fold.addLine(to: p(0.58, 0.36))
+    fold.addLine(to: p(0.58, 0.22))
+    fold.closeSubpath()
+
+    fill(white, 0xF8F9FA, 0xDADCE0, shadow: s * 0.02, in: ctx)
+    fill(fold, 0x2F5FCC, 0x2A56C6, shadow: 0, in: ctx)
+    fill(blue, 0x5A95FF, 0x3B78F0, shadow: s * 0.025, in: ctx)
+    glyph("文", at: p(0.71, 0.36), height: w * 0.2, weight: .semibold, color: NSColor(srgbRed: 0x5F / 255, green: 0x63 / 255, blue: 0x68 / 255, alpha: 1), in: ctx)
+    glyph("A", at: p(0.36, 0.59), height: w * 0.23, weight: .heavy, color: .white, in: ctx)
 
     NSGraphicsContext.restoreGraphicsState()
     try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "\(out)/icon_\(name).png"))
