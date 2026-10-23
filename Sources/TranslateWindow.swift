@@ -11,9 +11,12 @@ final class TranslateWindowController: NSWindowController, NSWindowDelegate, WKN
         config.websiteDataStore = .default()        // вход в аккаунт и настройки сохраняются
         config.preferences.isElementFullscreenEnabled = true
         config.userContentController.addUserScript(Site.style)
+        // Представляемся Safari той версии, что стоит на Маке: движок у нас тот же. Если называться Chrome,
+        // Google замечает несовпадение и не пускает в аккаунт («This browser or app may not be secure»),
+        // а без слова Safari принимает окно за встроенный браузер.
+        let safari = Bundle(path: "/Applications/Safari.app")?.infoDictionary?["CFBundleShortVersionString"] as? String
+        config.applicationNameForUserAgent = "Version/\(safari ?? "26.0") Safari/605.1.15"
         webView = WKWebView(frame: .zero, configuration: config)
-        // Представляемся сайту как Chrome — Google рассчитывает на него.
-        webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
         // Пока страница грузится, WebKit заливает окно белым — в темной теме это вспышка. Свой фон не
         // рисуем: под страницей виден фон окна.
         webView.setValue(false, forKey: "drawsBackground")
@@ -245,17 +248,16 @@ enum Site {
 
     static func isGoogle(_ url: URL) -> Bool { matches(url.host ?? "", #"(^|\.)"# + google) }
 
-    /// Кнопка «Приложения Google» в шапке ведет в другие сервисы — в окне Переводчика она не нужна.
-    /// Прячется вместе с обертками, в которых она одна, чтобы не осталось пустого места.
+    /// Кнопка «Приложения Google» и всплывающие подсказки панели Google (реклама Chrome и т.п.) ведут в
+    /// другие сервисы — в окне Переводчика они не нужны. Прячутся вместе с обертками, в которых они одни,
+    /// чтобы не осталось пустого места.
     static let style = WKUserScript(source: """
         if (/^translate\\.google\\./.test(location.hostname)) {
-          const apps = 'a[href*="/about/products"]';
+          const hide = ['a[href*="/about/products"]', 'iframe[name="callout"]'].map(t =>
+            `${t}, :has(> ${t}:only-child), :has(> :only-child > ${t}:only-child),
+             :has(> :only-child > :only-child > ${t}:only-child)`);
           const style = document.createElement('style');
-          style.textContent = `
-            ${apps},
-            :has(> ${apps}:only-child),
-            :has(> :only-child > ${apps}:only-child),
-            :has(> :only-child > :only-child > ${apps}:only-child) { display: none !important; }`;
+          style.textContent = `${hide.join(',')} { display: none !important; }`;
           document.documentElement.appendChild(style);
         }
         """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
