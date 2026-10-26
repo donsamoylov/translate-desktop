@@ -249,15 +249,12 @@ enum Site {
     static func isGoogle(_ url: URL) -> Bool { matches(url.host ?? "", #"(^|\.)"# + google) }
 
     /// Кнопка «Приложения Google» и всплывающие подсказки панели Google (реклама Chrome и т.п.) ведут в
-    /// другие сервисы — в окне Переводчика они не нужны. Прячутся вместе с обертками, в которых они одни,
-    /// чтобы не осталось пустого места.
+    /// другие сервисы — в окне Переводчика они не нужны. Только простые селекторы: правила с `:has()`
+    /// WebKit перепроверяет на каждом изменении страницы, и перевод появлялся в 5–7 раз медленнее.
     static let style = WKUserScript(source: """
         if (/^translate\\.google\\./.test(location.hostname)) {
-          const hide = ['a[href*="/about/products"]', 'iframe[name="callout"]'].map(t =>
-            `${t}, :has(> ${t}:only-child), :has(> :only-child > ${t}:only-child),
-             :has(> :only-child > :only-child > ${t}:only-child)`);
           const style = document.createElement('style');
-          style.textContent = `${hide.join(',')} { display: none !important; }`;
+          style.textContent = `a[href*="/about/products"], iframe[name="callout"] { display: none !important; }`;
           document.documentElement.appendChild(style);
         }
         """, injectionTime: .atDocumentStart, forMainFrameOnly: true)
